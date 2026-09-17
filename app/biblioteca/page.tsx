@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { ArrowRight, BookOpen, Search, Terminal } from 'lucide-react'
-import { useState } from 'react'
+import { collection, getDocs } from 'firebase/firestore'
+import { useEffect, useState } from 'react'
+import { firestore } from '@/lib/firebase'
 
 const groups = [
   { title: 'Sistema y diagnóstico', commands: [['uptime', 'Carga y tiempo encendido'], ['free -h', 'Memoria RAM y swap'], ['df -hT', 'Espacio por sistema de archivos'], ['du -xhd1 / | sort -h', 'Directorios que más ocupan'], ['uname -a', 'Kernel y arquitectura'], ['ps aux', 'Procesos activos'], ['top', 'Monitorización en tiempo real'], ['vmstat 1 5', 'CPU, memoria e I/O']] },
@@ -15,7 +17,10 @@ const groups = [
 
 export default function BibliotecaPage() {
   const [query, setQuery] = useState('')
-  const results = groups.filter(({ title, commands }) => `${title} ${commands.flat().join(' ')}`.toLowerCase().includes(query.toLowerCase()))
+  const [approvedGroups, setApprovedGroups] = useState<{ title: string; commands: string[][] }[]>([])
+  useEffect(() => { if (!firestore) return; getDocs(collection(firestore, 'commands')).then((snapshot) => { const grouped = new Map<string, string[][]>(); snapshot.docs.forEach((item) => { const data = item.data(); const title = String(data.category || 'Comandos aprobados'); const current = grouped.get(title) || []; current.push([String(data.command || ''), String(data.description || data.label || 'Comando aprobado')]); grouped.set(title, current) }); setApprovedGroups(Array.from(grouped, ([title, commands]) => ({ title, commands }))) }).catch(() => setApprovedGroups([])) }, [])
+  const visibleGroups = [...groups, ...approvedGroups]
+  const results = visibleGroups.filter(({ title, commands }) => `${title} ${commands.flat().join(' ')}`.toLowerCase().includes(query.toLowerCase()))
   return <main className="min-h-screen bg-[#f7f8fa] text-slate-900"><Header active="Biblioteca" /><section className="border-b bg-white"><div className="mx-auto max-w-6xl px-5 py-14 lg:px-8"><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Biblioteca Linux</p><h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Encuentra el comando correcto.</h1><p className="mt-4 max-w-2xl text-slate-500">Una vista enfocada para aprender por áreas de trabajo, no por una lista interminable.</p><div className="mt-8 flex max-w-xl items-center gap-3 rounded-2xl border bg-slate-50 px-4 py-3"><Search className="size-5 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Busca categoría o comando" className="flex-1 bg-transparent text-sm outline-none" /></div></div></section><section className="mx-auto grid max-w-6xl gap-4 px-5 py-10 md:grid-cols-2 lg:px-8">{results.map(({ title, commands }) => <article key={title} className="rounded-2xl border bg-white p-6 shadow-sm"><div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-xl bg-slate-950 text-emerald-300"><Terminal className="size-5" /></div><div><h2 className="font-semibold">{title}</h2><p className="text-xs text-slate-400">{commands.length} comandos esenciales</p></div></div><div className="mt-5 grid gap-2 sm:grid-cols-2">{commands.map(([command, description]) => <div key={command} className="rounded-xl border border-slate-100 bg-slate-50 p-3"><code className="font-mono text-xs font-semibold text-slate-800">{command}</code><p className="mt-1 text-xs leading-5 text-slate-500">{description}</p></div>)}</div><div className="mt-5 flex flex-wrap gap-4"><Link href={`/?categoria=${encodeURIComponent(title)}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">Explorar comandos <ArrowRight className="size-4" /></Link><Link href={`/laboratorio?categoria=${encodeURIComponent(title)}`} className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700">Abrir laboratorio <ArrowRight className="size-4" /></Link></div></article>)}</section></main>
 }
 
