@@ -12,6 +12,6 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
-const app = typeof window !== 'undefined' && firebaseConfig.apiKey ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null
+const app = firebaseConfig.apiKey ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null
 export const firebaseAuth = app ? getAuth(app) : null
 export const firestore = app ? getFirestore(app) : null
